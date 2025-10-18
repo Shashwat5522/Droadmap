@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pdf-api
+  namespace: pdf-ingestion
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pdf-api
+  template:
+    metadata:
+      labels:
+        app: pdf-api
+    spec:
+      containers:
+      - name: api
+        image: pdf-ingestion:latest
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: PORT
+          value: "8080"
+        - name: POSTGRES_HOST
+          value: "postgres.pdf-ingestion.svc.cluster.local"
+        - name: POSTGRES_PORT
+          value: "5432"
+        - name: POSTGRES_DB
+          value: "master_db"
+        - name: POSTGRES_USER
+          value: "postgres"
+        - name: POSTGRES_PASSWORD
+          value: "postgres123"
+        - name: MONGO_HOST
+          value: "mongodb.pdf-ingestion.svc.cluster.local"
+        - name: MONGO_PORT
+          value: "27017"
+        - name: MINIO_ENDPOINT
+          value: "minio.pdf-ingestion.svc.cluster.local:9000"
+        - name: MINIO_ACCESS_KEY
+          value: "minioadmin"
+        - name: MINIO_SECRET_KEY
+          value: "minioadmin123"
+        - name: MINIO_USE_SSL
+          value: "false"
+        - name: MINIO_BUCKET
+          value: "pdf-uploads"
+        - name: OPENAI_API_KEY
+          value: ""  # Set this to your OpenAI API key
+        ports:
+        - containerPort: 8080
+          name: http
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+
