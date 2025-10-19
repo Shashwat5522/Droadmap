@@ -1,0 +1,66 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Dependencies
+vendor/
+node_modules/
+
+# Build outputs
+bin/
+dist/
+*.exe
+*.o
+*.a
+*.so
+
+# Test
+.coverage
+coverage.txt
+*.test
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Docker
+Dockerfile*
+.dockerignore
+docker-compose*.yaml
+
+# Documentation
+README.md
+docs/
+*.md
+
+# Kubernetes
+k8s/
+*.yaml
+*.yml
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Scripts
+scripts/
+Makefile
+
+# Misc
+*.pdf
+test-document-*.pdf
+ISSUE_FIX_SUMMARY.md
+GEMINI_*.md
+AVAILABLE_MODELS.md
+.cursor/

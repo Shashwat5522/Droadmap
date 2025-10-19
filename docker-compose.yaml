@@ -1,56 +1,77 @@
-version: '3.8'
+version: '3.9'
 
 services:
-  # PostgreSQL - Master Database
+  # PostgreSQL - Master database for tenant metadata
   postgres:
     image: postgres:16-alpine
-    container_name: pdf-postgres
+    container_name: droadmap-postgres
     environment:
+      POSTGRES_DB: master_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres123
-      POSTGRES_DB: master_db
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-postgres.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d master_db"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
+    networks:
+      - droadmap-network
+    restart: unless-stopped
 
-  # MongoDB - Tenant Databases
+  # MongoDB - Tenant-specific databases
   mongodb:
     image: mongo:7.0
-    container_name: pdf-mongodb
+    container_name: droadmap-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: mongodb123
+      MONGO_INITDB_DATABASE: admin
     ports:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+      - ./scripts/init-mongodb.js:/docker-entrypoint-initdb.d/init.js
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
+    networks:
+      - droadmap-network
+    restart: unless-stopped
 
   # Mongo Express - MongoDB Web UI
   mongo-express:
     image: mongo-express:latest
-    container_name: pdf-mongo-express
+    container_name: droadmap-mongo-express
     environment:
-      ME_CONFIG_MONGODB_URL: mongodb://mongodb:27017/
+      ME_CONFIG_MONGODB_URL: mongodb://admin:mongodb123@mongodb:27017/
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: mongodb123
       ME_CONFIG_BASICAUTH_USERNAME: admin
       ME_CONFIG_BASICAUTH_PASSWORD: admin123
     ports:
       - "8081:8081"
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
+    networks:
+      - droadmap-network
     restart: unless-stopped
 
-  # MinIO - Object Storage
+  # MinIO - S3-compatible object storage
   minio:
     image: minio/minio:latest
-    container_name: pdf-minio
+    container_name: droadmap-minio
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
@@ -65,9 +86,82 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
+    networks:
+      - droadmap-network
+    restart: unless-stopped
 
+  # Main PDF Ingestion Service API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: droadmap-api:latest
+    container_name: droadmap-api
+    environment:
+      PORT: 8080
+      
+      # PostgreSQL configuration
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: master_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+      
+      # MongoDB configuration
+      MONGO_HOST: mongodb
+      MONGO_PORT: 27017
+      MONGO_USER: admin
+      MONGO_PASS: mongodb123
+      
+      # MinIO configuration
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin123
+      MINIO_USE_SSL: "false"
+      MINIO_BUCKET: pdf-uploads
+      
+      # Gemini AI configuration (set from .env or shell)
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      
+      # Application mode
+      GIN_MODE: debug
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      # Development: mount source code
+      - .:/app
+      # Avoid syncing binaries
+      - /app/bin
+    networks:
+      - droadmap-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+# Persistent volumes
 volumes:
   postgres_data:
+    driver: local
   mongodb_data:
+    driver: local
+  mongodb_config:
+    driver: local
   minio_data:
+    driver: local
 
+# Network for inter-service communication
+networks:
+  droadmap-network:
+    driver: bridge

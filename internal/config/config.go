@@ -20,6 +20,8 @@ type Config struct {
 	// MongoDB (Tenant DBs)
 	MongoHost string
 	MongoPort string
+	MongoUser string
+	MongoPass string
 
 	// MinIO / S3
 	MinIOEndpoint  string
@@ -44,6 +46,8 @@ func Load() *Config {
 		PostgresPassword: getEnv("POSTGRES_PASSWORD", "postgres123"),
 		MongoHost:        getEnv("MONGO_HOST", "localhost"),
 		MongoPort:        getEnv("MONGO_PORT", "27017"),
+		MongoUser:        getEnv("MONGO_USER", ""),
+		MongoPass:        getEnv("MONGO_PASS", ""),
 		MinIOEndpoint:    getEnv("MINIO_ENDPOINT", "localhost:9000"),
 		MinIOAccessKey:   getEnv("MINIO_ACCESS_KEY", "minioadmin"),
 		MinIOSecretKey:   getEnv("MINIO_SECRET_KEY", "minioadmin123"),
@@ -62,6 +66,9 @@ func (c *Config) PostgresConnString() string {
 
 // MongoConnString returns the MongoDB connection string
 func (c *Config) MongoConnString() string {
+	if c.MongoUser != "" && c.MongoPass != "" {
+		return fmt.Sprintf("mongodb://%s:%s@%s:%s", c.MongoUser, c.MongoPass, c.MongoHost, c.MongoPort)
+	}
 	return fmt.Sprintf("mongodb://%s:%s", c.MongoHost, c.MongoPort)
 }
 
