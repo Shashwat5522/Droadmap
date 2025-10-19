@@ -28,8 +28,9 @@ type Config struct {
 	MinIOUseSSL    bool
 	MinIOBucket    string
 
-	// OpenAI
-	OpenAIAPIKey string
+	// AI Services
+	GeminiAPIKey string // Google Gemini API Key (Free Tier)
+	OpenAIAPIKey string // OpenAI API Key (Deprecated)
 }
 
 // Load loads configuration from environment variables
@@ -48,6 +49,7 @@ func Load() *Config {
 		MinIOSecretKey:   getEnv("MINIO_SECRET_KEY", "minioadmin123"),
 		MinIOUseSSL:      getEnv("MINIO_USE_SSL", "false") == "true",
 		MinIOBucket:      getEnv("MINIO_BUCKET", "pdf-uploads"),
+		GeminiAPIKey:     getEnv("GEMINI_API_KEY", ""),
 		OpenAIAPIKey:     getEnv("OPENAI_API_KEY", ""),
 	}
 }
@@ -69,4 +71,3 @@ func getEnv(key, defaultValue string) string {
 	}
 	return defaultValue
 }
-

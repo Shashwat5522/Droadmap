@@ -72,13 +72,8 @@ func main() {
 	// Initialize services
 	tenantService := services.NewTenantService(postgresRepo, mongoRepo, cfg.MongoHost, cfg.MongoPort)
 	pdfService := services.NewPDFService()
-	aiService := services.NewAIService(cfg.OpenAIAPIKey)
+	aiService := services.NewAIService(cfg.GeminiAPIKey)
 
-	if cfg.OpenAIAPIKey == "" {
-		fmt.Println("⚠️  Warning: OpenAI API key not set. Using fallback summarization.")
-	} else {
-		fmt.Println("✓ AI service initialized (OpenAI)")
-	}
 
 	// Initialize handlers
 	uploadHandler := handlers.NewUploadHandler(tenantService, pdfService, aiService, storageService, mongoRepo)
